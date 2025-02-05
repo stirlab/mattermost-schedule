@@ -72,6 +72,10 @@ async def post_handler(request: Request):
     form_data = await request.form()
     form_dict = dict(form_data)
     response = await handle_command(form_dict)
+    print("\n----- Sending JSON Response -----")
+    import json
+    print(json.dumps(response, indent=2))
+    print("----- End JSON Response -----\n")
     return JSONResponse(content=response)
 
 async def validate_command(form_data: dict) -> tuple[bool, str]:
