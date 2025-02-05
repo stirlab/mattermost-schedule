@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from fastapi import FastAPI, Request, UploadFile
+from fastapi.responses import JSONResponse
 import uvicorn
 
 from .constants import (
@@ -71,7 +72,7 @@ async def post_handler(request: Request):
     form_data = await request.form()
     form_dict = dict(form_data)
     response = await handle_command(form_dict)
-    return response
+    return JSONResponse(content=response)
 
 async def validate_command(form_data: dict) -> tuple[bool, str]:
     """Validate the Mattermost slash command.
