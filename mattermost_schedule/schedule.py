@@ -60,12 +60,12 @@ async def print_post_metadata(request: Request,):
         print("Content type not recognized for parsing. Displaying raw data only.")
     print("----- End of POST Request -----\n")
 
-@app.get("/")
+@app.get("/monitor")
 async def get_handler(request: Request):
     await print_get_metadata(request)
-    return {"text": "Hello, World!"}
+    return "up"
 
-@app.post("/")
+@app.post("/schedule")
 async def post_handler(request: Request):
     await print_post_metadata(request)
     form_data = await request.form()
