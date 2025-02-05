@@ -1,0 +1,30 @@
+[project]
+name = "mattermost-schedule"
+version = "0.1.0"
+description = "Mattermost message scheduler via /schedule slash command"
+requires-python = ">=3.7"
+dependencies = [
+    "fastapi>=0.68.0",
+    "uvicorn>=0.15.0",
+    "python-multipart>=0.0.5",
+]
+
+[project.scripts]
+mattermost-schedule = "mattermost_schedule.schedule:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "black",
+    "isort",
+    "flake8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
