@@ -72,11 +72,7 @@ async def post_handler(request: Request):
     form_data = await request.form()
     form_dict = dict(form_data)
     response = await handle_command(form_dict)
-    print("\n----- Sending JSON Response -----")
-    import json
-    print(json.dumps(response, indent=2))
-    print("----- End JSON Response -----\n")
-    return JSONResponse(content=response)
+    return response
 
 async def validate_command(form_data: dict) -> tuple[bool, str]:
     """Validate the Mattermost slash command.
@@ -123,19 +119,21 @@ async def handle_delete_command() -> str:
     """Handle the /schedule delete command"""
     return "Deleted the scheduled message."
 
-async def handle_command(form_data: dict) -> dict:
+async def handle_command(form_data: dict) -> JSONResponse:
     """Process the Mattermost slash command"""
     is_valid, error = await validate_command(form_data)
     if not is_valid:
-        return {"text": f"Error: {error}"}
+        return JSONResponse(content={"text": f"Error: {error}"})
     text = form_data.get('text', '').strip()
     if text == 'list':
-        response_text = await handle_list_command()
+        response = await handle_list_command()
     elif text == 'delete':
-        response_text = await handle_delete_command()
+        response = await handle_delete_command()
     else:
-        response_text = "Error: Unknown operation. Available operations: list, delete"
-    return {"text": response_text}
+        response = "Error: Unknown operation. Available operations: list, delete"
+    if isinstance(response, str):
+        response = {"text": response}
+    return JSONResponse(content=response)
 
 def main():
     print(f"Starting FastAPI server on host {FASTAPI_HOST}, port {FASTAPI_PORT}. Use Ctrl+C to stop.")
