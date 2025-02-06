@@ -93,7 +93,7 @@ def create_message_attachment(pretext: str, text: str, messsage_id: int) -> dict
             "id": "delete",
             "name": "Delete",
             "integration": {
-                "url": "http://localhost:8001",
+                "url": "http://localhost:8001/schedule",
                 "context": {
                     "action": "delete",
                     "id": messsage_id
