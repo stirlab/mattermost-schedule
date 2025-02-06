@@ -3,15 +3,14 @@
 import argparse
 import sys
 from typing import Any
+
+import uvicorn
 from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import JSONResponse
-import uvicorn
 
-from .constants import (
-    FASTAPI_HOST,
-    FASTAPI_PORT,
-)
+from .constants import FASTAPI_HOST, FASTAPI_PORT
 from .logger import Logger
+
 
 class ScheduleAPI:
     """Main API class for Mattermost scheduling integration.
@@ -23,7 +22,9 @@ class ScheduleAPI:
     :param debug: Enable debug mode
     """
 
-    def __init__(self, host: str = FASTAPI_HOST, port: int = FASTAPI_PORT, debug: bool = False) -> None:
+    def __init__(
+        self, host: str = FASTAPI_HOST, port: int = FASTAPI_PORT, debug: bool = False
+    ) -> None:
         self.host = host
         self.port = port
         self.debug = debug
@@ -55,8 +56,8 @@ class ScheduleAPI:
 
     async def _log_post_request(self, request: Request) -> None:
         """Log details of POST requests."""
-        content_type = request.headers.get('content-type', '')
-        if 'multipart/form-data' in content_type:
+        content_type = request.headers.get("content-type", "")
+        if "multipart/form-data" in content_type:
             form_data = await request.form()
             for field_name, field_value in form_data.items():
                 if isinstance(field_value, UploadFile):
@@ -64,10 +65,9 @@ class ScheduleAPI:
                     self.logger.debug(f"Filename: {field_value.filename}")
                 else:
                     self.logger.debug(f"Form field: {field_name}={field_value}")
-        elif 'application/json' in content_type:
+        elif "application/json" in content_type:
             json_data = await request.json()
             self.logger.debug(f"JSON data: {json_data}")
-
 
     async def get_handler(self, request: Request) -> str:
         """Handle GET requests to /monitor endpoint."""
@@ -78,15 +78,14 @@ class ScheduleAPI:
         """Handle POST requests to /schedule endpoint."""
         await self._log_request_metadata(request)
         try:
-            content_type = request.headers.get('content-type', '')
-            if 'application/json' in content_type:
+            content_type = request.headers.get("content-type", "")
+            if "application/json" in content_type:
                 return await self._handle_json_command(await request.json())
             return await self._handle_form_command(dict(await request.form()))
         except Exception as e:
             self.logger.error(f"Request processing failed: {str(e)}")
             return JSONResponse(
-                content={"text": "Internal server error"},
-                status_code=500
+                content={"text": "Internal server error"}, status_code=500
             )
 
     async def _handle_json_command(self, data: dict[str, Any]) -> JSONResponse:
@@ -101,59 +100,82 @@ class ScheduleAPI:
         is_valid, error = await self._validate_form_command(data)
         if not is_valid:
             return JSONResponse(content={"text": f"Error: {error}"}, status_code=400)
-        return await self._handle_list_command() if data.get('text') == 'list' else \
-            JSONResponse(content={"text": "Error: Unknown operation. Available: list"}, status_code=400)
+        return (
+            await self._handle_list_command()
+            if data.get("text") == "list"
+            else JSONResponse(
+                content={"text": "Error: Unknown operation. Available: list"},
+                status_code=400,
+            )
+        )
 
     async def _handle_list_command(self) -> JSONResponse:
         """Handle list command with logging."""
         self.logger.info("Listing scheduled events")
-        return JSONResponse(content={
-            "text": "### Scheduled Events",
-            "attachments": [
-                self.create_message_attachment("", "### 2024-02-20 10:00 AM\nTeam Meeting", 1),
-                self.create_message_attachment("", "### 2024-02-21 2:30 PM\nProject Review", 2),
-                self.create_message_attachment("", "### 2024-02-22 11:00 AM\nClient Call", 3),
-            ]
-        })
+        return JSONResponse(
+            content={
+                "text": "### Scheduled Events",
+                "attachments": [
+                    self.create_message_attachment(
+                        "", "### 2024-02-20 10:00 AM\nTeam Meeting", 1
+                    ),
+                    self.create_message_attachment(
+                        "", "### 2024-02-21 2:30 PM\nProject Review", 2
+                    ),
+                    self.create_message_attachment(
+                        "", "### 2024-02-22 11:00 AM\nClient Call", 3
+                    ),
+                ],
+            }
+        )
 
     async def _handle_delete_command(self, data: dict[str, Any]) -> JSONResponse:
         """Handle delete command with validation."""
-        message_id = data['context']['id']
+        message_id = data["context"]["id"]
         self.logger.info(f"Deleting scheduled message ID: {message_id}")
-        return JSONResponse(content={"ephemeral_text": f"Scheduled message {message_id} deleted."})
+        return JSONResponse(
+            content={"ephemeral_text": f"Scheduled message {message_id} deleted."}
+        )
 
     @staticmethod
-    def create_message_attachment(pretext: str, text: str, message_id: int) -> dict[str, Any]:
+    def create_message_attachment(
+        pretext: str, text: str, message_id: int
+    ) -> dict[str, Any]:
         """Create Mattermost message attachment with delete action."""
         return {
             "pretext": pretext,
             "text": text,
-            "actions": [{
-                "id": "delete",
-                "name": "Delete",
-                "style": "danger",
-                "integration": {
-                    "url": "http://localhost:8001/schedule",
-                    "context": {"action": "delete", "id": message_id}
+            "actions": [
+                {
+                    "id": "delete",
+                    "name": "Delete",
+                    "style": "danger",
+                    "integration": {
+                        "url": "http://localhost:8001/schedule",
+                        "context": {"action": "delete", "id": message_id},
+                    },
                 }
-            }]
+            ],
         }
 
     async def _validate_json_command(self, data: dict[str, Any]) -> tuple[bool, str]:
         """Validate JSON command structure."""
-        if 'context' not in data:
+        if "context" not in data:
             return False, "No context provided"
-        context = data['context']
+        context = data["context"]
         if not isinstance(context, dict):
             return False, "Context must be a dictionary"
-        if 'action' not in context:
+        if "action" not in context:
             return False, "No action specified in context"
-        if context['action'] != 'delete':
-            return False, f"Invalid action: {context['action']}. Only 'delete' is supported."
-        if 'id' not in context:
+        if context["action"] != "delete":
+            return (
+                False,
+                f"Invalid action: {context['action']}. Only 'delete' is supported.",
+            )
+        if "id" not in context:
             return False, "No id specified in context"
         try:
-            event_id = int(context['id'])
+            event_id = int(context["id"])
             if event_id <= 0:
                 return False, f"Invalid id: {event_id}. Must be a positive integer."
         except (ValueError, TypeError):
@@ -162,10 +184,10 @@ class ScheduleAPI:
 
     async def _validate_form_command(self, data: dict[str, Any]) -> tuple[bool, str]:
         """Validate form command structure."""
-        if 'command' not in data:
+        if "command" not in data:
             return False, "No command provided"
-        command = data['command']
-        if command != '/schedule':
+        command = data["command"]
+        if command != "/schedule":
             return False, f"Invalid command: {command}. Only /schedule is supported."
         return True, ""
 
@@ -173,10 +195,21 @@ class ScheduleAPI:
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Mattermost scheduling API server")
-    parser.add_argument("--host", type=str, default=FASTAPI_HOST, help="Host address to bind, default %(default)s")
-    parser.add_argument("--port", type=int, default=FASTAPI_PORT, help="Port number to listen on, default %(default)s")
+    parser.add_argument(
+        "--host",
+        type=str,
+        default=FASTAPI_HOST,
+        help="Host address to bind, default %(default)s",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=FASTAPI_PORT,
+        help="Port number to listen on, default %(default)s",
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     return parser.parse_args()
+
 
 def main() -> None:
     """Main entry point for the schedule API server."""
@@ -192,6 +225,7 @@ def main() -> None:
     finally:
         logger.info("Server shutdown complete")
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
