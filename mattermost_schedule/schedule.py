@@ -142,7 +142,7 @@ async def handle_list_command() -> dict:
         create_message_attachment("2024-02-21 2:30 PM", "Project Review", 2),
         create_message_attachment("2024-02-22 11:00 AM", "Client Call", 3),
     ]
-
+    print("Listing scheduled events")
     return {
         "text": "### Scheduled Events",
         "attachments": events
@@ -151,7 +151,9 @@ async def handle_list_command() -> dict:
 async def handle_delete_command(data: dict) -> str:
     """Handle the /schedule delete command"""
     id = data['context']['id']
-    return f"Deleted scheduled message with id {id}."
+    messsage = f"Scheduled message with id {id} deleted."
+    print(messsage)
+    return messsage
 
 async def handle_json_command(data: dict) -> JSONResponse:
     is_valid, error = await validate_json_command(data)
