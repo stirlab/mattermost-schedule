@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import pprint
 from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -39,6 +40,7 @@ async def print_get_metadata(request: Request):
 async def print_post_metadata(request: Request,):
     await print_request_metadata(request)
     content_type = request.headers.get('content-type', '')
+    print("Request Body:")
     if 'multipart/form-data' in content_type:
         form_data = await request.form()
         for field_name, field_value in form_data.items():
@@ -55,6 +57,10 @@ async def print_post_metadata(request: Request,):
         print("Parsed URL-encoded Form Data:")
         for key, value in form_data.items():
             print(f"  {key}: {value}")
+    elif 'application/json' in content_type:
+        json_data = await request.json()
+        print("Parsed JSON Data:")
+        pprint.pprint(json_data)
     else:
         body = await request.body()
         print(f"Raw POST Data: {body}")
@@ -69,12 +75,39 @@ async def get_handler(request: Request):
 @app.post("/schedule")
 async def post_handler(request: Request):
     await print_post_metadata(request)
-    form_data = await request.form()
-    form_dict = dict(form_data)
-    response = await handle_command(form_dict)
+    content_type = request.headers.get('content-type', '')
+    if 'application/json' in content_type:
+        data = await request.json()
+        response = await handle_json_command(data)
+    else:  # application/x-www-form-urlencoded or multipart/form-data
+        form_data = await request.form()
+        data = dict(form_data)
+        response = await handle_form_command(data)
     return response
 
-async def validate_command(form_data: dict) -> tuple[bool, str]:
+async def validate_json_command(form_data: dict) -> tuple[bool, str]:
+    """Validate the Mattermost message action command.
+    Returns (is_valid, error_message)"""
+    if 'context' not in form_data:
+        return False, "No context provided"
+    context = form_data['context']
+    if not isinstance(context, dict):
+        return False, "Context must be a dictionary"
+    if 'action' not in context:
+        return False, "No action specified in context"
+    if context['action'] != 'delete':
+        return False, f"Invalid action: {context['action']}. Only 'delete' is supported."
+    if 'id' not in context:
+        return False, "No id specified in context"
+    try:
+        event_id = int(context['id'])
+        if event_id <= 0:
+            return False, f"Invalid id: {event_id}. Must be a positive integer."
+    except (ValueError, TypeError):
+        return False, f"Invalid id: {context['id']}. Must be a valid integer."
+    return True, ""
+
+async def validate_form_command(form_data: dict) -> tuple[bool, str]:
     """Validate the Mattermost slash command.
     Returns (is_valid, error_message)"""
     if 'command' not in form_data:
@@ -115,13 +148,23 @@ async def handle_list_command() -> dict:
         "attachments": events
     }
 
-async def handle_delete_command() -> str:
+async def handle_delete_command(form_data: dict) -> str:
     """Handle the /schedule delete command"""
-    return "Deleted the scheduled message."
+    id = form_data['context']['id']
+    return f"Deleted scheduled message with id {id}."
 
-async def handle_command(form_data: dict) -> JSONResponse:
+async def handle_json_command(form_data: dict) -> JSONResponse:
+    is_valid, error = await validate_json_command(form_data)
+    if not is_valid:
+        return JSONResponse(content={"text": f"Error: {error}"})
+    response = await handle_delete_command(form_data)
+    if isinstance(response, str):
+        response = {"text": response}
+    return JSONResponse(content=response)
+
+async def handle_form_command(form_data: dict) -> JSONResponse:
     """Process the Mattermost slash command"""
-    is_valid, error = await validate_command(form_data)
+    is_valid, error = await validate_form_command(form_data)
     if not is_valid:
         return JSONResponse(content={"text": f"Error: {error}"})
     text = form_data.get('text', '').strip()
