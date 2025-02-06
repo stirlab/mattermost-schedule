@@ -162,7 +162,7 @@ async def handle_json_command(data: dict) -> JSONResponse:
         return JSONResponse(content={"text": f"Error: {error}"})
     response = await handle_delete_command(data)
     if isinstance(response, str):
-        response = {"text": response}
+        response = {"ephemeral_text": response}
     return JSONResponse(content=response)
 
 async def handle_form_command(data: dict) -> JSONResponse:
