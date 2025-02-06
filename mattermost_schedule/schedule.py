@@ -85,12 +85,12 @@ async def post_handler(request: Request):
         response = await handle_form_command(data)
     return response
 
-async def validate_json_command(form_data: dict) -> tuple[bool, str]:
+async def validate_json_command(data: dict) -> tuple[bool, str]:
     """Validate the Mattermost message action command.
     Returns (is_valid, error_message)"""
-    if 'context' not in form_data:
+    if 'context' not in data:
         return False, "No context provided"
-    context = form_data['context']
+    context = data['context']
     if not isinstance(context, dict):
         return False, "Context must be a dictionary"
     if 'action' not in context:
@@ -107,12 +107,12 @@ async def validate_json_command(form_data: dict) -> tuple[bool, str]:
         return False, f"Invalid id: {context['id']}. Must be a valid integer."
     return True, ""
 
-async def validate_form_command(form_data: dict) -> tuple[bool, str]:
+async def validate_form_command(data: dict) -> tuple[bool, str]:
     """Validate the Mattermost slash command.
     Returns (is_valid, error_message)"""
-    if 'command' not in form_data:
+    if 'command' not in data:
         return False, "No command provided"
-    command = form_data['command']
+    command = data['command']
     if command != '/schedule':
         return False, f"Invalid command: {command}. Only /schedule is supported."
     return True, ""
@@ -148,32 +148,30 @@ async def handle_list_command() -> dict:
         "attachments": events
     }
 
-async def handle_delete_command(form_data: dict) -> str:
+async def handle_delete_command(data: dict) -> str:
     """Handle the /schedule delete command"""
-    id = form_data['context']['id']
+    id = data['context']['id']
     return f"Deleted scheduled message with id {id}."
 
-async def handle_json_command(form_data: dict) -> JSONResponse:
-    is_valid, error = await validate_json_command(form_data)
+async def handle_json_command(data: dict) -> JSONResponse:
+    is_valid, error = await validate_json_command(data)
     if not is_valid:
         return JSONResponse(content={"text": f"Error: {error}"})
-    response = await handle_delete_command(form_data)
+    response = await handle_delete_command(data)
     if isinstance(response, str):
         response = {"text": response}
     return JSONResponse(content=response)
 
-async def handle_form_command(form_data: dict) -> JSONResponse:
+async def handle_form_command(data: dict) -> JSONResponse:
     """Process the Mattermost slash command"""
-    is_valid, error = await validate_form_command(form_data)
+    is_valid, error = await validate_form_command(data)
     if not is_valid:
         return JSONResponse(content={"text": f"Error: {error}"})
-    text = form_data.get('text', '').strip()
+    text = data.get('text', '').strip()
     if text == 'list':
         response = await handle_list_command()
-    elif text == 'delete':
-        response = await handle_delete_command()
     else:
-        response = "Error: Unknown operation. Available operations: list, delete"
+        response = "Error: Unknown operation. Available operations: list"
     if isinstance(response, str):
         response = {"text": response}
     return JSONResponse(content=response)
