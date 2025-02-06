@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import pprint
 from typing import Any
 
 import uvicorn
@@ -40,8 +41,8 @@ class ScheduleAPI:
     async def _log_request_metadata(self, request: Request) -> None:
         """Log detailed request information using the logger."""
         self.logger.debug(f"Incoming {request.method} request to {request.url.path}")
-        self.logger.debug(f"Headers: {dict(request.headers.items())}")
-
+        headers = pprint.pformat(dict(request.headers.items()), indent=2)
+        self.logger.debug(f"Headers:\n{headers}")
         if request.method == "GET":
             await self._log_get_request(request)
         elif request.method == "POST":
@@ -50,9 +51,8 @@ class ScheduleAPI:
     async def _log_get_request(self, request: Request) -> None:
         """Log details of GET requests."""
         if request.query_params:
-            self.logger.debug("Query Parameters:")
-            for key, value in request.query_params.items():
-                self.logger.debug(f"  {key}: {value}")
+            params = pprint.pformat(dict(request.query_params.items()), indent=2)
+            self.logger.debug(f"Query Parameters:\n{params}")
 
     async def _log_post_request(self, request: Request) -> None:
         """Log details of POST requests."""
@@ -65,9 +65,13 @@ class ScheduleAPI:
                     self.logger.debug(f"Filename: {field_value.filename}")
                 else:
                     self.logger.debug(f"Form field: {field_name}={field_value}")
+        elif 'application/x-www-form-urlencoded' in content_type:
+            form_data = await request.form()
+            data = pprint.pformat(dict(form_data.items()), indent=2)
+            self.logger.debug(f"Form data:\n{data}")
         elif "application/json" in content_type:
-            json_data = await request.json()
-            self.logger.debug(f"JSON data: {json_data}")
+            json_data = pprint.pformat(await request.json(), indent=2)
+            self.logger.debug(f"JSON data:\n{json_data}")
 
     async def get_handler(self, request: Request) -> str:
         """Handle GET requests to /monitor endpoint."""
