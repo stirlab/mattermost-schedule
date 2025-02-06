@@ -125,6 +125,7 @@ def create_message_attachment(pretext: str, text: str, messsage_id: int) -> dict
         "actions": [{
             "id": "delete",
             "name": "Delete",
+            "style": "danger",
             "integration": {
                 "url": "http://localhost:8001/schedule",
                 "context": {
